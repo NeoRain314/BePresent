@@ -100,10 +100,8 @@ export async function startTrainingRoom({ container, presentationTitle, roomLabe
       });
       renderer.xr.setSession(session);
     } catch {
-      requestDesktopFullscreen(container);
+      // User or browser rejected VR session; keep desktop mode without forcing fullscreen.
     }
-  } else {
-    requestDesktopFullscreen(container);
   }
 
   container.querySelector('#exit-room').addEventListener('click', async () => {
@@ -117,16 +115,6 @@ export async function startTrainingRoom({ container, presentationTitle, roomLabe
     renderer.dispose();
     screenTexture.dispose();
     onExit();
-  });
-}
-
-function requestDesktopFullscreen(container) {
-  if (document.fullscreenElement || !container.requestFullscreen) {
-    return;
-  }
-
-  container.requestFullscreen().catch(() => {
-    // Fullscreen may be blocked by browser policy.
   });
 }
 
