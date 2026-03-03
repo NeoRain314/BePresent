@@ -12,7 +12,8 @@ const translations = {
       newPresentation: '+ New Presentation',
       cancel: 'Cancel',
       start: 'Start',
-      back: 'Back'
+      back: 'Back',
+      save: 'Save'
     },
     modal: {
       title: 'Presentation Selection',
@@ -29,7 +30,14 @@ const translations = {
       day: 'day',
       days: 'days',
       untitled: 'Untitled',
-      defaultNewTitle: 'Title'
+      defaultNewTitle: 'Title',
+      extraInfoFallback: 'No extra information yet.'
+    },
+    infoModal: {
+      title: 'Edit presentation info',
+      dateLabel: 'Date',
+      extraInfoLabel: 'Extra information',
+      extraInfoPlaceholder: 'Add notes, goals, or context for this presentation.'
     },
     rooms: {
       classroomA: 'Classroom A',

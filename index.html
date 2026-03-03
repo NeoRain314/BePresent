@@ -29,16 +29,34 @@
       <div class="modal">
         <h2 data-i18n="modal.title">Presentation Selection</h2>
         <label>
-          <span data-i18n="modal.presentationLabel">Presentation</span>:
+          <span data-i18n="modal.presentationLabel">Presentation</span>
           <select id="presentation-select"></select>
         </label>
         <label>
-          <span data-i18n="modal.roomLabel">Room</span>:
+          <span data-i18n="modal.roomLabel">Room</span>
           <select id="room-select"></select>
         </label>
         <div class="modal-actions">
           <button id="modal-cancel" class="btn" data-i18n="actions.cancel">Cancel</button>
           <button id="modal-start" class="btn btn-primary" data-i18n="actions.start">Start</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="info-modal" class="modal-backdrop" hidden>
+      <div class="modal">
+        <h2 data-i18n="infoModal.title">Edit presentation info</h2>
+        <label>
+          <span data-i18n="infoModal.dateLabel">Date</span>
+          <input id="info-date" type="date" />
+        </label>
+        <label>
+          <span data-i18n="infoModal.extraInfoLabel">Extra information</span>
+          <textarea id="info-extra" rows="5" data-i18n-placeholder="infoModal.extraInfoPlaceholder" placeholder="Add notes, goals, or context for this presentation."></textarea>
+        </label>
+        <div class="modal-actions">
+          <button id="info-cancel" class="btn" data-i18n="actions.cancel">Cancel</button>
+          <button id="info-save" class="btn btn-primary" data-i18n="actions.save">Save</button>
         </div>
       </div>
     </div>

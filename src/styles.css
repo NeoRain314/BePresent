@@ -151,6 +151,12 @@ main {
   color: #5f5c8a;
 }
 
+.extra-info {
+  color: #5f5b86;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
 .card-buttons {
   display: flex;
   gap: 0.45rem;
@@ -207,12 +213,23 @@ main {
   margin-bottom: 0.8rem;
 }
 
+.modal label > span::after {
+  content: ':';
+}
+
+.modal input,
+.modal textarea,
 .modal select {
   border-radius: 0.55rem;
   border: 1px solid #a7a5ca;
   padding: 0.48rem 0.58rem;
   background: white;
   color: #42416d;
+}
+
+.modal textarea {
+  resize: vertical;
+  min-height: 7rem;
 }
 
 .modal-actions {
