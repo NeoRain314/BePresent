@@ -12,51 +12,6 @@ const presentations = [
   { id: crypto.randomUUID(), title: 'Englisch Pras', date: '19-02-2025', points: 50, streak: '1 Tag' }
 ];
 
-const app = document.querySelector('#app');
-
-app.innerHTML = `
-  <div class="page-shell">
-    <header class="topbar">
-      <div class="brand">Be Present</div>
-      <nav class="tabs">
-        <button class="tab is-active">Meine Prasentationen</button>
-        <button class="tab">Ubungen</button>
-        <button class="tab">Modifikationen</button>
-      </nav>
-      <div class="actions">
-        <button id="start-presentation-btn" class="btn btn-primary">Presentation starten</button>
-        <button id="new-presentation-btn" class="btn">+ Neue Prasentation</button>
-      </div>
-    </header>
-
-    <main>
-      <section id="presentation-list" class="presentation-list"></section>
-    </main>
-  </div>
-
-  <div id="start-modal" class="modal-backdrop" hidden>
-    <div class="modal">
-      <h2>Prasentationsauswahl</h2>
-      <label>
-        Prasentation:
-        <select id="presentation-select"></select>
-      </label>
-      <label>
-        Raum Auswahl:
-        <select id="room-select">
-          ${roomOptions.map((room) => `<option value="${room.id}">${room.label}</option>`).join('')}
-        </select>
-      </label>
-      <div class="modal-actions">
-        <button id="modal-cancel" class="btn">Abbrechen</button>
-        <button id="modal-start" class="btn btn-primary">Prasentation starten</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="vr-root" class="vr-root" hidden></div>
-`;
-
 const listEl = document.querySelector('#presentation-list');
 const modalEl = document.querySelector('#start-modal');
 const presentationSelectEl = document.querySelector('#presentation-select');
@@ -67,6 +22,12 @@ const vrRootEl = document.querySelector('#vr-root');
 function renderPresentationSelect() {
   presentationSelectEl.innerHTML = presentations
     .map((item) => `<option value="${item.id}">${item.title || 'Ohne Titel'}</option>`)
+    .join('');
+}
+
+function renderRoomSelect() {
+  roomSelectEl.innerHTML = roomOptions
+    .map((room) => `<option value="${room.id}">${room.label}</option>`)
     .join('');
 }
 
@@ -168,3 +129,4 @@ modalEl.addEventListener('click', (event) => {
 
 renderCards();
 renderPresentationSelect();
+renderRoomSelect();
