@@ -1,15 +1,16 @@
 import './styles.css';
 import { startTrainingRoom } from './vr/room.js';
+import { t } from './i18n/texts.js';
 
 const roomOptions = [
-  { id: 'classroom-a', label: 'Klassenzimmer A' },
-  { id: 'auditorium', label: 'Auditorium' },
-  { id: 'seminar', label: 'Seminarraum' }
+  { id: 'classroom-a', label: t('rooms.classroomA') },
+  { id: 'auditorium', label: t('rooms.auditorium') },
+  { id: 'seminar', label: t('rooms.seminarRoom') }
 ];
 
 const presentations = [
-  { id: crypto.randomUUID(), title: 'GFS Biologie', date: '12-02-2025', points: 120, streak: '3 Tage' },
-  { id: crypto.randomUUID(), title: 'Englisch Pras', date: '19-02-2025', points: 50, streak: '1 Tag' }
+  { id: crypto.randomUUID(), title: 'Biology GFS', date: '12-02-2025', points: 120, streakDays: 3 },
+  { id: crypto.randomUUID(), title: 'English Presentation', date: '19-02-2025', points: 50, streakDays: 1 }
 ];
 
 const listEl = document.querySelector('#presentation-list');
@@ -19,9 +20,21 @@ const roomSelectEl = document.querySelector('#room-select');
 const pageShellEl = document.querySelector('.page-shell');
 const vrRootEl = document.querySelector('#vr-root');
 
+function applyStaticTranslations() {
+  document.title = t('appTitle');
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    el.textContent = t(el.dataset.i18n);
+  }
+}
+
+function formatStreak(days) {
+  const unit = days === 1 ? t('cards.day') : t('cards.days');
+  return `${days} ${unit}`;
+}
+
 function renderPresentationSelect() {
   presentationSelectEl.innerHTML = presentations
-    .map((item) => `<option value="${item.id}">${item.title || 'Ohne Titel'}</option>`)
+    .map((item) => `<option value="${item.id}">${item.title || t('cards.untitled')}</option>`)
     .join('');
 }
 
@@ -36,18 +49,18 @@ function renderCards() {
     .map(
       (item) => `
       <article class="card" data-id="${item.id}">
-        <div class="thumb">Vorschau</div>
+        <div class="thumb">${t('cards.preview')}</div>
         <div class="card-main">
-          <input class="title-input" value="${item.title}" aria-label="Prasentationstitel" />
+          <input class="title-input" value="${item.title}" aria-label="${t('cards.titleInputAria')}" />
           <div class="date">${item.date}</div>
           <div class="card-buttons">
-            <button class="chip">Karteikarten bearbeiten</button>
-            <button class="chip">Prasentationsinfos bearbeiten</button>
+            <button class="chip">${t('cards.editFlashcards')}</button>
+            <button class="chip">${t('cards.editPresentationInfo')}</button>
           </div>
         </div>
         <div class="metrics">
-          <div>Punkte: ${item.points}</div>
-          <div>Streak: ${item.streak}</div>
+          <div>${t('cards.points')}: ${item.points}</div>
+          <div>${t('cards.streak')}: ${formatStreak(item.streakDays)}</div>
         </div>
       </article>
     `
@@ -108,10 +121,10 @@ function addMockPresentation() {
 
   presentations.unshift({
     id: crypto.randomUUID(),
-    title: 'Titel',
+    title: t('cards.defaultNewTitle'),
     date: dateLabel,
     points: 0,
-    streak: '0 Tage'
+    streakDays: 0
   });
 
   renderCards();
@@ -127,6 +140,7 @@ modalEl.addEventListener('click', (event) => {
   }
 });
 
+applyStaticTranslations();
 renderCards();
 renderPresentationSelect();
 renderRoomSelect();

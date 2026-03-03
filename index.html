@@ -8,15 +8,15 @@
   <body>
     <div class="page-shell">
       <header class="topbar">
-        <div class="brand">Be Present</div>
+        <div class="brand" data-i18n="brand">Be Present</div>
         <nav class="tabs">
-          <button class="tab is-active">Meine Prasentationen</button>
-          <button class="tab">Ubungen</button>
-          <button class="tab">Modifikationen</button>
+          <button class="tab is-active" data-i18n="tabs.presentations">My Presentations</button>
+          <button class="tab" data-i18n="tabs.practice">Practice</button>
+          <button class="tab" data-i18n="tabs.customization">Customization</button>
         </nav>
         <div class="actions">
-          <button id="start-presentation-btn" class="btn btn-primary">Presentation starten</button>
-          <button id="new-presentation-btn" class="btn">+ Neue Prasentation</button>
+          <button id="start-presentation-btn" class="btn btn-primary" data-i18n="actions.startPresentation">Start Presentation</button>
+          <button id="new-presentation-btn" class="btn" data-i18n="actions.newPresentation">+ New Presentation</button>
         </div>
       </header>
 
@@ -27,18 +27,18 @@
 
     <div id="start-modal" class="modal-backdrop" hidden>
       <div class="modal">
-        <h2>Prasentationsauswahl</h2>
+        <h2 data-i18n="modal.title">Presentation Selection</h2>
         <label>
-          Prasentation:
+          <span data-i18n="modal.presentationLabel">Presentation</span>:
           <select id="presentation-select"></select>
         </label>
         <label>
-          Raum Auswahl:
+          <span data-i18n="modal.roomLabel">Room</span>:
           <select id="room-select"></select>
         </label>
         <div class="modal-actions">
-          <button id="modal-cancel" class="btn">Abbrechen</button>
-          <button id="modal-start" class="btn btn-primary">Prasentation starten</button>
+          <button id="modal-cancel" class="btn" data-i18n="actions.cancel">Cancel</button>
+          <button id="modal-start" class="btn btn-primary" data-i18n="actions.start">Start</button>
         </div>
       </div>
     </div>

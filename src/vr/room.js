@@ -1,10 +1,11 @@
 import * as THREE from 'three';
+import { t } from '../i18n/texts.js';
 
 export async function startTrainingRoom({ container, presentationTitle, roomLabel, onExit }) {
   container.innerHTML = `
     <div class="vr-toolbar">
       <span>${presentationTitle} - ${roomLabel}</span>
-      <button id="exit-room" class="btn">Zuruck</button>
+      <button id="exit-room" class="btn">${t('actions.back')}</button>
     </div>
   `;
 
@@ -144,11 +145,11 @@ function createScreenTexture(title) {
 
   ctx.fillStyle = '#2d2d48';
   ctx.font = 'bold 58px Segoe UI';
-  ctx.fillText(title || 'Titel', 60, 220);
+  ctx.fillText(title || t('cards.defaultNewTitle'), 60, 220);
 
   ctx.font = '38px Segoe UI';
   ctx.fillStyle = '#4f4f73';
-  ctx.fillText('WebXR Trainingsraum', 60, 320);
+  ctx.fillText(t('vr.trainingRoom'), 60, 320);
 
   return new THREE.CanvasTexture(canvas);
 }
