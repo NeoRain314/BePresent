@@ -2,15 +2,10 @@ import './styles.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { startTrainingRoom } from './vr/room.js';
+import { roomOptions } from './vr/rooms.js';
 import { t } from './i18n/texts.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-
-const roomOptions = [
-  { id: 'classroom-a', label: t('rooms.classroomA') },
-  { id: 'auditorium', label: t('rooms.auditorium') },
-  { id: 'seminar', label: t('rooms.seminarRoom') }
-];
 
 const presentations = [
   {
@@ -274,6 +269,7 @@ async function launchSelectedPresentation() {
     container: vrRootEl,
     presentationTitle: selectedPresentation.title,
     roomLabel: roomOptions.find((room) => room.id === roomId)?.label ?? roomId,
+    roomModelUrl: roomOptions.find((room) => room.id === roomId)?.modelUrl ?? '',
     onExit: () => {
       vrRootEl.hidden = true;
       vrRootEl.innerHTML = '';

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { t } from '../i18n/texts.js';
 
-export async function startTrainingRoom({ container, presentationTitle, roomLabel, onExit }) {
+export async function startTrainingRoom({ container, presentationTitle, roomLabel, roomModelUrl, onExit }) {
   container.innerHTML = `
     <div class="vr-toolbar">
       <span>${presentationTitle} - ${roomLabel}</span>
@@ -27,56 +28,14 @@ export async function startTrainingRoom({ container, presentationTitle, roomLabe
   keyLight.position.set(5, 7, 3);
   scene.add(keyLight);
 
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(14, 14),
-    new THREE.MeshStandardMaterial({ color: 0xdedff0, roughness: 0.95 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
-
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7f7fb });
-
-  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(14, 5.5), wallMaterial);
-  backWall.position.set(0, 2.75, -5.5);
-  scene.add(backWall);
-
-  const sideWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(11, 5.5), wallMaterial);
-  sideWallLeft.position.set(-7, 2.75, 0);
-  sideWallLeft.rotation.y = Math.PI / 2;
-  scene.add(sideWallLeft);
-
-  const sideWallRight = sideWallLeft.clone();
-  sideWallRight.position.x = 7;
-  sideWallRight.rotation.y = -Math.PI / 2;
-  scene.add(sideWallRight);
-
-  const podium = new THREE.Mesh(
-    new THREE.BoxGeometry(1.2, 1.1, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0x8582b4, roughness: 0.35 })
-  );
-  podium.position.set(0, 0.55, -1.4);
-  scene.add(podium);
-
-  const screenTexture = createScreenTexture(presentationTitle);
-  const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.8, 2.2),
-    new THREE.MeshStandardMaterial({ map: screenTexture })
-  );
-  screen.position.set(0, 2.7, -5.45);
-  scene.add(screen);
-
-  const audience = new THREE.Group();
-  for (let row = 0; row < 2; row += 1) {
-    for (let col = -2; col <= 2; col += 1) {
-      const chair = new THREE.Mesh(
-        new THREE.BoxGeometry(0.45, 0.45, 0.45),
-        new THREE.MeshStandardMaterial({ color: 0xb5b5cc, roughness: 0.7 })
-      );
-      chair.position.set(col * 1.1, 0.25, 1.8 + row * 1.15);
-      audience.add(chair);
-    }
+  const modelRoom = roomModelUrl ? await loadRoomModel(roomModelUrl) : null;
+  if (modelRoom) {
+    scene.add(modelRoom);
+  } else {
+    addDefaultRoom(scene);
   }
-  scene.add(audience);
+
+  const { podium, screenTexture } = addPresentationProps(scene, presentationTitle);
 
   const resize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -116,6 +75,93 @@ export async function startTrainingRoom({ container, presentationTitle, roomLabe
     screenTexture.dispose();
     onExit();
   });
+}
+
+async function loadRoomModel(modelUrl) {
+  const loader = new GLTFLoader();
+
+  try {
+    const gltf = await loader.loadAsync(modelUrl);
+    const model = gltf.scene;
+    fitRoomModel(model);
+    return model;
+  } catch (error) {
+    console.warn('Could not load room model:', error);
+    return null;
+  }
+}
+
+function fitRoomModel(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDimension = Math.max(size.x, size.y, size.z);
+
+  if (maxDimension > 0) {
+    model.scale.multiplyScalar(10 / maxDimension);
+  }
+
+  const fittedBox = new THREE.Box3().setFromObject(model);
+  const center = fittedBox.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= fittedBox.min.y;
+}
+
+function addDefaultRoom(scene) {
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(14, 14),
+    new THREE.MeshStandardMaterial({ color: 0xdedff0, roughness: 0.95 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7f7fb });
+
+  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(14, 5.5), wallMaterial);
+  backWall.position.set(0, 2.75, -5.5);
+  scene.add(backWall);
+
+  const sideWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(11, 5.5), wallMaterial);
+  sideWallLeft.position.set(-7, 2.75, 0);
+  sideWallLeft.rotation.y = Math.PI / 2;
+  scene.add(sideWallLeft);
+
+  const sideWallRight = sideWallLeft.clone();
+  sideWallRight.position.x = 7;
+  sideWallRight.rotation.y = -Math.PI / 2;
+  scene.add(sideWallRight);
+
+  const audience = new THREE.Group();
+  for (let row = 0; row < 2; row += 1) {
+    for (let col = -2; col <= 2; col += 1) {
+      const chair = new THREE.Mesh(
+        new THREE.BoxGeometry(0.45, 0.45, 0.45),
+        new THREE.MeshStandardMaterial({ color: 0xb5b5cc, roughness: 0.7 })
+      );
+      chair.position.set(col * 1.1, 0.25, 1.8 + row * 1.15);
+      audience.add(chair);
+    }
+  }
+  scene.add(audience);
+}
+
+function addPresentationProps(scene, presentationTitle) {
+  const podium = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 1.1, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x8582b4, roughness: 0.35 })
+  );
+  podium.position.set(0, 0.55, -1.4);
+  scene.add(podium);
+
+  const screenTexture = createScreenTexture(presentationTitle);
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.8, 2.2),
+    new THREE.MeshStandardMaterial({ map: screenTexture })
+  );
+  screen.position.set(0, 2.7, -5.45);
+  scene.add(screen);
+
+  return { podium, screenTexture };
 }
 
 function createScreenTexture(title) {
