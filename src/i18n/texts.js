@@ -29,6 +29,8 @@ const translations = {
       streak: 'Streak',
       day: 'day',
       days: 'days',
+      page: 'page',
+      pages: 'pages',
       untitled: 'Untitled',
       defaultNewTitle: 'Title',
       extraInfoFallback: 'No extra information yet.',
@@ -42,7 +44,9 @@ const translations = {
       presentationFileLabel: 'Presentation file',
       uploadPdf: 'Upload PDF',
       noFileSelected: 'No PDF selected.',
-      invalidPdf: 'Please select a PDF file.'
+      invalidPdf: 'Please select a PDF file.',
+      readingPdf: 'Preparing PDF preview...',
+      pdfReadError: 'Could not prepare a preview for this PDF.'
     },
     rooms: {
       classroomA: 'Classroom A',

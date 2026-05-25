@@ -9,6 +9,7 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
+    "pdfjs-dist": "^5.7.284",
     "three": "^0.178.0"
   },
   "devDependencies": {

@@ -1,6 +1,10 @@
 import './styles.css';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { startTrainingRoom } from './vr/room.js';
 import { t } from './i18n/texts.js';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const roomOptions = [
   { id: 'classroom-a', label: t('rooms.classroomA') },
@@ -17,7 +21,8 @@ const presentations = [
     streakDays: 3,
     extraInfo: 'Focus on clear transitions between ecosystems and genetics.',
     presentationFile: null,
-    presentationFileName: ''
+    presentationFileName: '',
+    presentationPages: []
   },
   {
     id: crypto.randomUUID(),
@@ -27,7 +32,8 @@ const presentations = [
     streakDays: 1,
     extraInfo: '',
     presentationFile: null,
-    presentationFileName: ''
+    presentationFileName: '',
+    presentationPages: []
   }
 ];
 
@@ -46,6 +52,7 @@ const vrRootEl = document.querySelector('#vr-root');
 let infoEditPresentationId = null;
 let selectedPdfFile = null;
 let selectedPdfFileName = '';
+let selectedPdfPages = [];
 
 function applyStaticTranslations() {
   document.title = t('appTitle');
@@ -71,6 +78,57 @@ function escapeHtml(text) {
     .replaceAll("'", '&#39;');
 }
 
+function renderPreview(item) {
+  const firstPage = item.presentationPages?.[0];
+
+  if (!firstPage) {
+    return `<div class="thumb thumb-empty">${t('cards.preview')}</div>`;
+  }
+
+  const fileName = item.presentationFileName || t('cards.preview');
+
+  return `
+    <div class="thumb thumb-pdf">
+      <img
+        class="pdf-preview"
+        src="${escapeHtml(firstPage)}"
+        title="${escapeHtml(fileName)} ${t('cards.preview')}"
+        alt="${escapeHtml(fileName)} ${t('cards.preview')}"
+      />
+    </div>
+  `;
+}
+
+async function renderPdfPages(file) {
+  const pdfData = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+  const pages = [];
+
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = Math.min(2, 720 / baseViewport.width);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { alpha: false });
+
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      await page.render({ canvasContext: context, viewport }).promise;
+      pages.push(canvas.toDataURL('image/png'));
+      page.cleanup();
+    }
+  } finally {
+    await pdf.destroy();
+  }
+
+  return pages;
+}
+
 function renderPresentationSelect() {
   presentationSelectEl.innerHTML = presentations
     .map((item) => `<option value="${item.id}">${item.title || t('cards.untitled')}</option>`)
@@ -88,7 +146,7 @@ function renderCards() {
     .map(
       (item) => `
       <article class="card" data-id="${item.id}">
-        <div class="thumb">${t('cards.preview')}</div>
+        ${renderPreview(item)}
         <div class="card-main">
           <input class="title-input" value="${escapeHtml(item.title ?? '')}" aria-label="${t('cards.titleInputAria')}" />
           <div class="date">${escapeHtml(item.date ?? '')}</div>
@@ -165,6 +223,7 @@ function openInfoModal(presentationId) {
   infoExtraEl.value = entry.extraInfo ?? '';
   selectedPdfFile = entry.presentationFile ?? null;
   selectedPdfFileName = entry.presentationFileName ?? '';
+  selectedPdfPages = entry.presentationPages ?? [];
   infoFileEl.value = '';
   infoFileNameEl.textContent = selectedPdfFileName || t('infoModal.noFileSelected');
   infoModalEl.hidden = false;
@@ -175,6 +234,7 @@ function closeInfoModal() {
   infoEditPresentationId = null;
   selectedPdfFile = null;
   selectedPdfFileName = '';
+  selectedPdfPages = [];
   infoFileEl.value = '';
 }
 
@@ -192,6 +252,7 @@ function saveInfoModal() {
   entry.extraInfo = infoExtraEl.value.trim();
   entry.presentationFile = selectedPdfFile;
   entry.presentationFileName = selectedPdfFileName;
+  entry.presentationPages = selectedPdfPages;
   closeInfoModal();
   renderCards();
 }
@@ -233,7 +294,8 @@ function addMockPresentation() {
     streakDays: 0,
     extraInfo: '',
     presentationFile: null,
-    presentationFileName: ''
+    presentationFileName: '',
+    presentationPages: []
   });
 
   renderCards();
@@ -246,7 +308,7 @@ document.querySelector('#modal-start').addEventListener('click', launchSelectedP
 document.querySelector('#info-cancel').addEventListener('click', closeInfoModal);
 document.querySelector('#info-save').addEventListener('click', saveInfoModal);
 infoFileButtonEl.addEventListener('click', () => infoFileEl.click());
-infoFileEl.addEventListener('change', () => {
+infoFileEl.addEventListener('change', async () => {
   const file = infoFileEl.files?.[0];
   if (!file) {
     return;
@@ -255,15 +317,22 @@ infoFileEl.addEventListener('change', () => {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (!isPdf) {
     infoFileEl.value = '';
-    selectedPdfFile = null;
-    selectedPdfFileName = '';
     infoFileNameEl.textContent = t('infoModal.invalidPdf');
     return;
   }
 
-  selectedPdfFileName = file.name;
-  selectedPdfFile = file;
-  infoFileNameEl.textContent = file.name;
+  infoFileNameEl.textContent = t('infoModal.readingPdf');
+
+  try {
+    const pages = await renderPdfPages(file);
+    selectedPdfFileName = file.name;
+    selectedPdfFile = file;
+    selectedPdfPages = pages;
+    infoFileNameEl.textContent = `${file.name} (${pages.length} ${pages.length === 1 ? t('cards.page') : t('cards.pages')})`;
+  } catch {
+    infoFileEl.value = '';
+    infoFileNameEl.textContent = t('infoModal.pdfReadError');
+  }
 });
 
 listEl.addEventListener('click', (event) => {
