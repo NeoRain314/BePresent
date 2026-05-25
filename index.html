@@ -54,6 +54,12 @@
           <span data-i18n="infoModal.extraInfoLabel">Extra information</span>
           <textarea id="info-extra" rows="5" data-i18n-placeholder="infoModal.extraInfoPlaceholder" placeholder="Add notes, goals, or context for this presentation."></textarea>
         </label>
+        <div class="file-upload">
+          <span data-i18n="infoModal.presentationFileLabel">Presentation file</span>
+          <input id="info-file" type="file" accept="application/pdf,.pdf" hidden />
+          <button id="info-file-button" type="button" class="btn" data-i18n="infoModal.uploadPdf">Upload PDF</button>
+          <div id="info-file-name" class="file-name" data-i18n="infoModal.noFileSelected">No PDF selected.</div>
+        </div>
         <div class="modal-actions">
           <button id="info-cancel" class="btn" data-i18n="actions.cancel">Cancel</button>
           <button id="info-save" class="btn btn-primary" data-i18n="actions.save">Save</button>

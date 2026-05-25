@@ -157,6 +157,12 @@ main {
   line-height: 1.35;
 }
 
+.file-status {
+  color: #4f4c82;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .card-buttons {
   display: flex;
   gap: 0.45rem;
@@ -230,6 +236,26 @@ main {
 .modal textarea {
   resize: vertical;
   min-height: 7rem;
+}
+
+.file-upload {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.file-upload > span::after {
+  content: ':';
+}
+
+.file-upload .btn {
+  justify-self: start;
+}
+
+.file-name {
+  color: #5f5b86;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
 }
 
 .modal-actions {

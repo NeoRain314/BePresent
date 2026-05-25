@@ -31,13 +31,18 @@ const translations = {
       days: 'days',
       untitled: 'Untitled',
       defaultNewTitle: 'Title',
-      extraInfoFallback: 'No extra information yet.'
+      extraInfoFallback: 'No extra information yet.',
+      noPresentationFile: 'No presentation PDF uploaded.'
     },
     infoModal: {
       title: 'Edit presentation info',
       dateLabel: 'Date',
       extraInfoLabel: 'Extra information',
-      extraInfoPlaceholder: 'Add notes, goals, or context for this presentation.'
+      extraInfoPlaceholder: 'Add notes, goals, or context for this presentation.',
+      presentationFileLabel: 'Presentation file',
+      uploadPdf: 'Upload PDF',
+      noFileSelected: 'No PDF selected.',
+      invalidPdf: 'Please select a PDF file.'
     },
     rooms: {
       classroomA: 'Classroom A',

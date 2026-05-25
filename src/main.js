@@ -15,7 +15,9 @@ const presentations = [
     date: '12-02-2025',
     points: 120,
     streakDays: 3,
-    extraInfo: 'Focus on clear transitions between ecosystems and genetics.'
+    extraInfo: 'Focus on clear transitions between ecosystems and genetics.',
+    presentationFile: null,
+    presentationFileName: ''
   },
   {
     id: crypto.randomUUID(),
@@ -23,7 +25,9 @@ const presentations = [
     date: '19-02-2025',
     points: 50,
     streakDays: 1,
-    extraInfo: ''
+    extraInfo: '',
+    presentationFile: null,
+    presentationFileName: ''
   }
 ];
 
@@ -34,9 +38,14 @@ const presentationSelectEl = document.querySelector('#presentation-select');
 const roomSelectEl = document.querySelector('#room-select');
 const infoDateEl = document.querySelector('#info-date');
 const infoExtraEl = document.querySelector('#info-extra');
+const infoFileEl = document.querySelector('#info-file');
+const infoFileButtonEl = document.querySelector('#info-file-button');
+const infoFileNameEl = document.querySelector('#info-file-name');
 const pageShellEl = document.querySelector('.page-shell');
 const vrRootEl = document.querySelector('#vr-root');
 let infoEditPresentationId = null;
+let selectedPdfFile = null;
+let selectedPdfFileName = '';
 
 function applyStaticTranslations() {
   document.title = t('appTitle');
@@ -84,6 +93,7 @@ function renderCards() {
           <input class="title-input" value="${escapeHtml(item.title ?? '')}" aria-label="${t('cards.titleInputAria')}" />
           <div class="date">${escapeHtml(item.date ?? '')}</div>
           <div class="extra-info">${escapeHtml(item.extraInfo || t('cards.extraInfoFallback'))}</div>
+          <div class="file-status">${escapeHtml(item.presentationFileName || t('cards.noPresentationFile'))}</div>
           <div class="card-buttons">
             <button class="chip">${t('cards.editFlashcards')}</button>
             <button class="chip" data-action="edit-info">${t('cards.editPresentationInfo')}</button>
@@ -153,12 +163,19 @@ function openInfoModal(presentationId) {
   infoEditPresentationId = presentationId;
   infoDateEl.value = toDateInputValue(entry.date);
   infoExtraEl.value = entry.extraInfo ?? '';
+  selectedPdfFile = entry.presentationFile ?? null;
+  selectedPdfFileName = entry.presentationFileName ?? '';
+  infoFileEl.value = '';
+  infoFileNameEl.textContent = selectedPdfFileName || t('infoModal.noFileSelected');
   infoModalEl.hidden = false;
 }
 
 function closeInfoModal() {
   infoModalEl.hidden = true;
   infoEditPresentationId = null;
+  selectedPdfFile = null;
+  selectedPdfFileName = '';
+  infoFileEl.value = '';
 }
 
 function saveInfoModal() {
@@ -173,6 +190,8 @@ function saveInfoModal() {
     entry.date = normalizedDate;
   }
   entry.extraInfo = infoExtraEl.value.trim();
+  entry.presentationFile = selectedPdfFile;
+  entry.presentationFileName = selectedPdfFileName;
   closeInfoModal();
   renderCards();
 }
@@ -212,7 +231,9 @@ function addMockPresentation() {
     date: dateLabel,
     points: 0,
     streakDays: 0,
-    extraInfo: ''
+    extraInfo: '',
+    presentationFile: null,
+    presentationFileName: ''
   });
 
   renderCards();
@@ -224,6 +245,26 @@ document.querySelector('#modal-cancel').addEventListener('click', closeStartModa
 document.querySelector('#modal-start').addEventListener('click', launchSelectedPresentation);
 document.querySelector('#info-cancel').addEventListener('click', closeInfoModal);
 document.querySelector('#info-save').addEventListener('click', saveInfoModal);
+infoFileButtonEl.addEventListener('click', () => infoFileEl.click());
+infoFileEl.addEventListener('change', () => {
+  const file = infoFileEl.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
+    infoFileEl.value = '';
+    selectedPdfFile = null;
+    selectedPdfFileName = '';
+    infoFileNameEl.textContent = t('infoModal.invalidPdf');
+    return;
+  }
+
+  selectedPdfFileName = file.name;
+  selectedPdfFile = file;
+  infoFileNameEl.textContent = file.name;
+});
 
 listEl.addEventListener('click', (event) => {
   const editInfoButton = event.target.closest('[data-action="edit-info"]');
