@@ -268,6 +268,7 @@ async function launchSelectedPresentation() {
   await startTrainingRoom({
     container: vrRootEl,
     presentationTitle: selectedPresentation.title,
+    firstSlideUrl: selectedPresentation.presentationPages?.[0] ?? '',
     roomLabel: roomOptions.find((room) => room.id === roomId)?.label ?? roomId,
     roomModelUrl: roomOptions.find((room) => room.id === roomId)?.modelUrl ?? '',
     onExit: () => {

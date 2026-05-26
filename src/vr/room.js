@@ -2,7 +2,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { t } from '../i18n/texts.js';
 
-export async function startTrainingRoom({ container, presentationTitle, roomLabel, roomModelUrl, onExit }) {
+const FALLBACK_PLAYER_POSITION = new THREE.Vector3(0, 0, 4.5);
+const FALLBACK_SCREEN_POSITION = new THREE.Vector3(0, 2.7, -5.45);
+const FALLBACK_SCREEN_SIZE = new THREE.Vector2(3.8, 2.2);
+const DESKTOP_EYE_HEIGHT = 1.6;
+
+export async function startTrainingRoom({ container, presentationTitle, firstSlideUrl, roomLabel, roomModelUrl, onExit }) {
   container.innerHTML = `
     <div class="vr-toolbar">
       <span>${presentationTitle} - ${roomLabel}</span>
@@ -19,8 +24,11 @@ export async function startTrainingRoom({ container, presentationTitle, roomLabe
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe8e8f2);
 
+  const cameraRig = new THREE.Group();
   const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 1.6, 4.5);
+  camera.position.set(0, DESKTOP_EYE_HEIGHT, 0);
+  cameraRig.add(camera);
+  scene.add(cameraRig);
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
 
@@ -29,13 +37,26 @@ export async function startTrainingRoom({ container, presentationTitle, roomLabe
   scene.add(keyLight);
 
   const modelRoom = roomModelUrl ? await loadRoomModel(roomModelUrl) : null;
+  let playerSpawn = null;
+  let screenAnchor = null;
+
   if (modelRoom) {
     scene.add(modelRoom);
+    modelRoom.updateMatrixWorld(true);
+    playerSpawn = modelRoom.getObjectByName('PlayerSpawn') ?? null;
+    screenAnchor = modelRoom.getObjectByName('ScreenAnchor') ?? null;
+    hideMarkerObject(playerSpawn);
+    hideMarkerObject(screenAnchor);
   } else {
     addDefaultRoom(scene);
   }
 
-  const { podium, screenTexture } = addPresentationProps(scene, presentationTitle);
+  applyPlayerSpawn(cameraRig, playerSpawn);
+  const { podium, screenTexture } = await addPresentationProps(scene, {
+    presentationTitle,
+    firstSlideUrl,
+    screenAnchor
+  });
 
   const resize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -83,7 +104,10 @@ async function loadRoomModel(modelUrl) {
   try {
     const gltf = await loader.loadAsync(modelUrl);
     const model = gltf.scene;
-    fitRoomModel(model);
+    const hasAuthoredAnchors = model.getObjectByName('PlayerSpawn') || model.getObjectByName('ScreenAnchor');
+    if (!hasAuthoredAnchors) {
+      fitRoomModel(model);
+    }
     return model;
   } catch (error) {
     console.warn('Could not load room model:', error);
@@ -105,6 +129,37 @@ function fitRoomModel(model) {
   model.position.x -= center.x;
   model.position.z -= center.z;
   model.position.y -= fittedBox.min.y;
+}
+
+function hideMarkerObject(object) {
+  if (!object) {
+    return;
+  }
+
+  object.traverse((child) => {
+    child.visible = false;
+  });
+}
+
+function applyPlayerSpawn(cameraRig, playerSpawn) {
+  if (!playerSpawn) {
+    cameraRig.position.copy(FALLBACK_PLAYER_POSITION);
+    cameraRig.rotation.set(0, 0, 0);
+    return;
+  }
+
+  const position = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  playerSpawn.getWorldPosition(position);
+  playerSpawn.getWorldQuaternion(quaternion);
+
+  cameraRig.position.copy(position);
+  cameraRig.quaternion.copy(getYawOnlyQuaternion(quaternion));
+}
+
+function getYawOnlyQuaternion(quaternion) {
+  const euler = new THREE.Euler().setFromQuaternion(quaternion, 'YXZ');
+  return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, euler.y, 0, 'YXZ'));
 }
 
 function addDefaultRoom(scene) {
@@ -145,7 +200,7 @@ function addDefaultRoom(scene) {
   scene.add(audience);
 }
 
-function addPresentationProps(scene, presentationTitle) {
+async function addPresentationProps(scene, { presentationTitle, firstSlideUrl, screenAnchor }) {
   const podium = new THREE.Mesh(
     new THREE.BoxGeometry(1.2, 1.1, 0.6),
     new THREE.MeshStandardMaterial({ color: 0x8582b4, roughness: 0.35 })
@@ -153,18 +208,39 @@ function addPresentationProps(scene, presentationTitle) {
   podium.position.set(0, 0.55, -1.4);
   scene.add(podium);
 
-  const screenTexture = createScreenTexture(presentationTitle);
+  const screenTexture = await createScreenTexture(presentationTitle, firstSlideUrl);
   const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.8, 2.2),
-    new THREE.MeshStandardMaterial({ map: screenTexture })
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: screenTexture, side: THREE.DoubleSide })
   );
-  screen.position.set(0, 2.7, -5.45);
+
+  applyScreenAnchor(screen, screenAnchor);
   scene.add(screen);
 
   return { podium, screenTexture };
 }
 
-function createScreenTexture(title) {
+function applyScreenAnchor(screen, screenAnchor) {
+  screen.scale.set(FALLBACK_SCREEN_SIZE.x, FALLBACK_SCREEN_SIZE.y, 1);
+  screen.rotation.set(0, 0, 0);
+
+  if (!screenAnchor) {
+    screen.position.copy(FALLBACK_SCREEN_POSITION);
+    return;
+  }
+
+  const position = new THREE.Vector3();
+  screenAnchor.getWorldPosition(position);
+  screen.position.copy(position);
+}
+
+async function createScreenTexture(title, firstSlideUrl) {
+  if (firstSlideUrl) {
+    const texture = await new THREE.TextureLoader().loadAsync(firstSlideUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 512;
