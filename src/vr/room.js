@@ -384,8 +384,8 @@ function applyScreenAnchor(screen, screenAnchor) {
 
 function createSlideControls(screen) {
   const group = new THREE.Group();
-  const previousButton = createSlideButton('PreviousButton', 'Previous', 0x6f6aa7);
-  const nextButton = createSlideButton('NextButton', 'Next', 0x5f9f82);
+  const previousButton = createSlideButton('PreviousButton', t('vr.previousSlide'), 0x6f6aa7);
+  const nextButton = createSlideButton('NextButton', t('vr.nextSlide'), 0x5f9f82);
   const buttonY = screen.position.y - FALLBACK_SCREEN_SIZE.y / 2 - 0.35;
   const buttonZ = screen.position.z + 0.04;
 

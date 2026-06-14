@@ -41,10 +41,17 @@ select {
 }
 
 .brand {
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #4f4b87;
+  display: flex;
+  align-items: center;
+  min-width: 145px;
+}
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 54px;
+  max-width: 180px;
+  object-fit: contain;
 }
 
 .tabs {
