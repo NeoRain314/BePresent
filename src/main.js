@@ -14,6 +14,7 @@ const presentations = [
     id: crypto.randomUUID(),
     title: 'Test Presentation',
     date: '12-02-2025',
+    targetTime: '',
     points: 120,
     streakDays: 3,
     extraInfo: 'Focus on clear transitions between ecosystems and genetics.',
@@ -26,6 +27,7 @@ const presentations = [
     id: crypto.randomUUID(),
     title: 'English Presentation',
     date: '19-02-2025',
+    targetTime: '',
     points: 50,
     streakDays: 1,
     extraInfo: '',
@@ -42,6 +44,7 @@ const infoModalEl = document.querySelector('#info-modal');
 const presentationSelectEl = document.querySelector('#presentation-select');
 const roomSelectEl = document.querySelector('#room-select');
 const infoDateEl = document.querySelector('#info-date');
+const infoTargetTimeEl = document.querySelector('#info-target-time');
 const infoExtraEl = document.querySelector('#info-extra');
 const infoFileEl = document.querySelector('#info-file');
 const infoFileButtonEl = document.querySelector('#info-file-button');
@@ -238,6 +241,15 @@ function fromDateInputValue(value) {
   return `${day}-${month}-${year}`;
 }
 
+function normalizeTargetTime(value) {
+  if (!value) {
+    return '';
+  }
+
+  const minutes = Number.parseInt(value, 10);
+  return Number.isFinite(minutes) && minutes > 0 ? String(minutes) : '';
+}
+
 function openStartModal() {
   renderPresentationSelect();
   modalEl.hidden = false;
@@ -255,6 +267,7 @@ function openInfoModal(presentationId) {
 
   infoEditPresentationId = presentationId;
   infoDateEl.value = toDateInputValue(entry.date);
+  infoTargetTimeEl.value = entry.targetTime ?? '';
   infoExtraEl.value = entry.extraInfo ?? '';
   selectedPdfFile = entry.presentationFile ?? null;
   selectedPdfFileName = entry.presentationFileName ?? '';
@@ -284,6 +297,8 @@ function saveInfoModal() {
   if (normalizedDate) {
     entry.date = normalizedDate;
   }
+  entry.targetTime = normalizeTargetTime(infoTargetTimeEl.value);
+  infoTargetTimeEl.value = entry.targetTime;
   entry.extraInfo = infoExtraEl.value.trim();
   entry.presentationFile = selectedPdfFile;
   entry.presentationFileName = selectedPdfFileName;
@@ -329,6 +344,7 @@ function addMockPresentation() {
     id: crypto.randomUUID(),
     title: t('cards.defaultNewTitle'),
     date: dateLabel,
+    targetTime: '',
     points: 0,
     streakDays: 0,
     extraInfo: '',

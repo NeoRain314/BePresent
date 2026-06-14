@@ -41,8 +41,10 @@ const translations = {
     infoModal: {
       title: 'Edit presentation info',
       dateLabel: 'Date',
+      targetTimeLabel: 'Target time (minutes)',
+      targetTimePlaceholder: 'Duration in minutes',
       extraInfoLabel: 'Extra information',
-      extraInfoPlaceholder: 'Add notes, goals, or context for this presentation.',
+      extraInfoPlaceholder: 'Add notes, goals, or context for this presentation. (for example Assessment guidelines of your teacher)',
       presentationFileLabel: 'Presentation file',
       uploadPdf: 'Upload PDF',
       noFileSelected: 'No PDF selected.',

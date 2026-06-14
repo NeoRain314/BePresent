@@ -6,7 +6,7 @@ const FALLBACK_PLAYER_POSITION = new THREE.Vector3(0, 0, 4.5);
 const FALLBACK_SCREEN_POSITION = new THREE.Vector3(0, 2.7, -5.45);
 const FALLBACK_SCREEN_SIZE = new THREE.Vector2(3.8, 2.2);
 const DESKTOP_EYE_HEIGHT = 1.6;
-const GAZE_FUSE_MS = 1500;
+const GAZE_FUSE_MS = 500;//1500;
 const POINTER_NDC = new THREE.Vector2(0, 0);
 
 export async function startTrainingRoom({
