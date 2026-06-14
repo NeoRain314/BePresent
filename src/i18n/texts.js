@@ -5,7 +5,9 @@ const translations = {
     tabs: {
       presentations: 'My Presentations',
       practice: 'Practice',
-      customization: 'Customization'
+      customization: 'Customization',
+      analyses: 'Your Analyses',
+      vrheadset: 'Our VR-Headset'
     },
     actions: {
       startPresentation: 'Start Presentation',
