@@ -6,8 +6,18 @@ const FALLBACK_PLAYER_POSITION = new THREE.Vector3(0, 0, 4.5);
 const FALLBACK_SCREEN_POSITION = new THREE.Vector3(0, 2.7, -5.45);
 const FALLBACK_SCREEN_SIZE = new THREE.Vector2(3.8, 2.2);
 const DESKTOP_EYE_HEIGHT = 1.6;
+const GAZE_FUSE_MS = 1500;
+const POINTER_NDC = new THREE.Vector2(0, 0);
 
-export async function startTrainingRoom({ container, presentationTitle, firstSlideUrl, roomLabel, roomModelUrl, onExit }) {
+export async function startTrainingRoom({
+  container,
+  presentationTitle,
+  presentationPages = [],
+  firstSlideUrl = '',
+  roomLabel,
+  roomModelUrl,
+  onExit
+}) {
   container.innerHTML = `
     <div class="vr-toolbar">
       <span>${presentationTitle} - ${roomLabel}</span>
@@ -52,11 +62,15 @@ export async function startTrainingRoom({ container, presentationTitle, firstSli
   }
 
   applyPlayerSpawn(cameraRig, playerSpawn);
-  const { podium, screenTexture } = await addPresentationProps(scene, {
+  const slideUrls = presentationPages.length > 0 ? presentationPages : [firstSlideUrl].filter(Boolean);
+  let currentSlideIndex = 0;
+  const { podium, screenTexture, screenMaterial, slideButtons, nextButton, disposePresentationControls } =
+    await addPresentationProps(scene, {
     presentationTitle,
-    firstSlideUrl,
+    firstSlideUrl: slideUrls[0] ?? '',
     screenAnchor
   });
+  let activeScreenTexture = screenTexture;
 
   const resize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -64,21 +78,140 @@ export async function startTrainingRoom({ container, presentationTitle, firstSli
     renderer.setSize(window.innerWidth, window.innerHeight);
   };
 
+  const interactionRaycaster = new THREE.Raycaster();
+  const controllerMatrix = new THREE.Matrix4();
+  const gazeReticle = createGazeReticle(camera);
+  let gazeStartTime = 0;
+  let gazeTriggered = false;
+
+  async function showSlide(slideIndex) {
+    if (slideUrls.length === 0) {
+      return;
+    }
+
+    const nextIndex = THREE.MathUtils.clamp(slideIndex, 0, slideUrls.length - 1);
+    if (nextIndex === currentSlideIndex) {
+      return;
+    }
+
+    try {
+      const nextTexture = await createScreenTexture(presentationTitle, slideUrls[nextIndex]);
+      activeScreenTexture.dispose();
+      activeScreenTexture = nextTexture;
+      screenMaterial.map = activeScreenTexture;
+      screenMaterial.needsUpdate = true;
+      currentSlideIndex = nextIndex;
+    } catch (error) {
+      console.warn('Could not switch presentation slide:', error);
+    }
+  }
+
+  function goToNextSlide() {
+    void showSlide(currentSlideIndex + 1);
+  }
+
+  function goToPreviousSlide() {
+    void showSlide(currentSlideIndex - 1);
+  }
+
+  function triggerSlideButton(button) {
+    if (button?.name === 'NextButton') {
+      goToNextSlide();
+      return true;
+    }
+
+    if (button?.name === 'PreviousButton') {
+      goToPreviousSlide();
+      return true;
+    }
+
+    return false;
+  }
+
+  function triggerFromRay(raycaster) {
+    const [hit] = raycaster.intersectObjects(slideButtons, false);
+    return triggerSlideButton(hit?.object);
+  }
+
+  function triggerFromCameraCenter() {
+    interactionRaycaster.setFromCamera(POINTER_NDC, camera);
+    return triggerFromRay(interactionRaycaster);
+  }
+
+  function handleControllerSelect(event) {
+    controllerMatrix.identity().extractRotation(event.target.matrixWorld);
+    interactionRaycaster.ray.origin.setFromMatrixPosition(event.target.matrixWorld);
+    interactionRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(controllerMatrix);
+    triggerFromRay(interactionRaycaster);
+  }
+
+  function handleSessionSelect(event) {
+    if (event.inputSource?.targetRayMode === 'gaze' || event.inputSource?.targetRayMode === 'screen') {
+      triggerFromCameraCenter();
+    }
+  }
+
+  function handleKeydown(event) {
+    if (event.code === 'ArrowRight' || event.code === 'Space') {
+      event.preventDefault();
+      goToNextSlide();
+    }
+
+    if (event.code === 'ArrowLeft') {
+      event.preventDefault();
+      goToPreviousSlide();
+    }
+  }
+
+  function updateGazeFuse(time) {
+    interactionRaycaster.setFromCamera(POINTER_NDC, camera);
+    const isGazingAtNext = nextButton && interactionRaycaster.intersectObject(nextButton, false).length > 0;
+
+    if (!isGazingAtNext) {
+      gazeStartTime = 0;
+      gazeTriggered = false;
+      updateGazeReticle(gazeReticle, 0);
+      return;
+    }
+
+    if (gazeStartTime === 0) {
+      gazeStartTime = time;
+    }
+
+    const progress = Math.min((time - gazeStartTime) / GAZE_FUSE_MS, 1);
+    updateGazeReticle(gazeReticle, progress);
+
+    if (progress >= 1 && !gazeTriggered) {
+      gazeTriggered = true;
+      goToNextSlide();
+    }
+  }
+
   window.addEventListener('resize', resize);
+  window.addEventListener('keydown', handleKeydown);
+
+  const controllers = [renderer.xr.getController(0), renderer.xr.getController(1)];
+  for (const controller of controllers) {
+    controller.addEventListener('select', handleControllerSelect);
+    scene.add(controller);
+  }
 
   let time = 0;
-  renderer.setAnimationLoop(() => {
+  renderer.setAnimationLoop((timestamp) => {
     time += 0.01;
     podium.rotation.y = Math.sin(time) * 0.05;
+    updateGazeFuse(timestamp);
     renderer.render(scene, camera);
   });
 
+  let xrSession = null;
   if (navigator.xr && (await navigator.xr.isSessionSupported('immersive-vr'))) {
     try {
-      const session = await navigator.xr.requestSession('immersive-vr', {
+      xrSession = await navigator.xr.requestSession('immersive-vr', {
         optionalFeatures: ['local-floor', 'bounded-floor']
       });
-      renderer.xr.setSession(session);
+      xrSession.addEventListener('select', handleSessionSelect);
+      renderer.xr.setSession(xrSession);
     } catch {
       // User or browser rejected VR session; keep desktop mode without forcing fullscreen.
     }
@@ -92,8 +225,14 @@ export async function startTrainingRoom({ container, presentationTitle, firstSli
 
     renderer.setAnimationLoop(null);
     window.removeEventListener('resize', resize);
+    window.removeEventListener('keydown', handleKeydown);
+    xrSession?.removeEventListener('select', handleSessionSelect);
+    for (const controller of controllers) {
+      controller.removeEventListener('select', handleControllerSelect);
+    }
     renderer.dispose();
-    screenTexture.dispose();
+    activeScreenTexture.dispose();
+    disposePresentationControls();
     onExit();
   });
 }
@@ -216,8 +355,17 @@ async function addPresentationProps(scene, { presentationTitle, firstSlideUrl, s
 
   applyScreenAnchor(screen, screenAnchor);
   scene.add(screen);
+  const { group, buttons, nextButton, dispose } = createSlideControls(screen);
+  scene.add(group);
 
-  return { podium, screenTexture };
+  return {
+    podium,
+    screenTexture,
+    screenMaterial: screen.material,
+    slideButtons: buttons,
+    nextButton,
+    disposePresentationControls: dispose
+  };
 }
 
 function applyScreenAnchor(screen, screenAnchor) {
@@ -232,6 +380,89 @@ function applyScreenAnchor(screen, screenAnchor) {
   const position = new THREE.Vector3();
   screenAnchor.getWorldPosition(position);
   screen.position.copy(position);
+}
+
+function createSlideControls(screen) {
+  const group = new THREE.Group();
+  const previousButton = createSlideButton('PreviousButton', 'Previous', 0x6f6aa7);
+  const nextButton = createSlideButton('NextButton', 'Next', 0x5f9f82);
+  const buttonY = screen.position.y - FALLBACK_SCREEN_SIZE.y / 2 - 0.35;
+  const buttonZ = screen.position.z + 0.04;
+
+  previousButton.position.set(screen.position.x - 0.55, buttonY, buttonZ);
+  nextButton.position.set(screen.position.x + 0.55, buttonY, buttonZ);
+  group.add(previousButton, nextButton);
+
+  return {
+    group,
+    buttons: [previousButton, nextButton],
+    nextButton,
+    dispose: () => {
+      disposeButton(previousButton);
+      disposeButton(nextButton);
+    }
+  };
+}
+
+function createSlideButton(name, label, color) {
+  const button = new THREE.Mesh(
+    new THREE.CircleGeometry(0.2, 40),
+    new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+  );
+  button.name = name;
+  button.userData.label = label;
+
+  const text = createTextSprite(label);
+  text.position.set(0, 0, 0.03);
+  button.add(text);
+
+  return button;
+}
+
+function createTextSprite(label) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 34px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+  sprite.name = `${label}Label`;
+  sprite.scale.set(0.5, 0.19, 1);
+  return sprite;
+}
+
+function disposeButton(button) {
+  button.geometry.dispose();
+  button.material.dispose();
+  for (const child of button.children) {
+    child.material.map?.dispose();
+    child.material.dispose();
+  }
+}
+
+function createGazeReticle(camera) {
+  const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.015, 0.025, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+  );
+  reticle.name = 'GazeReticle';
+  reticle.position.set(0, 0, -1.2);
+  camera.add(reticle);
+  return reticle;
+}
+
+function updateGazeReticle(reticle, progress) {
+  const scale = 1 + progress * 0.7;
+  reticle.scale.set(scale, scale, 1);
+  reticle.material.color.set(progress > 0 ? 0x8fd1a9 : 0xffffff);
 }
 
 async function createScreenTexture(title, firstSlideUrl) {

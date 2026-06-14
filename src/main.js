@@ -1,22 +1,25 @@
 import './styles.css';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import { startTrainingRoom } from './vr/room.js';
 import { roomOptions } from './vr/rooms.js';
 import { t } from './i18n/texts.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+const TEST_PRESENTATION_PDF_PATH = `${import.meta.env.BASE_URL}presentations/test-presentation.pdf`;
+
 const presentations = [
   {
     id: crypto.randomUUID(),
-    title: 'Biology GFS',
+    title: 'Test Presentation',
     date: '12-02-2025',
     points: 120,
     streakDays: 3,
     extraInfo: 'Focus on clear transitions between ecosystems and genetics.',
     presentationFile: null,
-    presentationFileName: '',
+    presentationFileName: 'test-presentation.pdf',
+    presentationFilePath: TEST_PRESENTATION_PDF_PATH,
     presentationPages: []
   },
   {
@@ -28,6 +31,7 @@ const presentations = [
     extraInfo: '',
     presentationFile: null,
     presentationFileName: '',
+    presentationFilePath: '',
     presentationPages: []
   }
 ];
@@ -94,8 +98,8 @@ function renderPreview(item) {
   `;
 }
 
-async function renderPdfPages(file) {
-  const pdfData = new Uint8Array(await file.arrayBuffer());
+async function renderPdfPages(pdfSource) {
+  const pdfData = new Uint8Array(await pdfSource.arrayBuffer());
   const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
   const pages = [];
 
@@ -122,6 +126,42 @@ async function renderPdfPages(file) {
   }
 
   return pages;
+}
+
+async function hydrateStaticPresentationFiles() {
+  await Promise.all(presentations.map((presentation) => hydratePresentationFile(presentation)));
+}
+
+async function hydratePresentationFile(presentation) {
+  if (presentation.presentationPages?.length || !presentation.presentationFilePath) {
+    return;
+  }
+
+  if (presentation.presentationFileLoadPromise) {
+    await presentation.presentationFileLoadPromise;
+    return;
+  }
+
+  presentation.presentationFileLoadPromise = (async () => {
+    try {
+      const pdfUrl = new URL(presentation.presentationFilePath, window.location.href);
+      const response = await fetch(pdfUrl.href, { cache: 'no-cache' });
+      if (!response.ok) {
+        console.warn(`Static presentation PDF not found: ${pdfUrl.href}`);
+        return;
+      }
+
+      const pdfBlob = await response.blob();
+      presentation.presentationFile = pdfBlob;
+      presentation.presentationPages = await renderPdfPages(pdfBlob);
+    } catch (error) {
+      console.warn(`Could not load static presentation PDF: ${presentation.presentationFilePath}`, error);
+    } finally {
+      presentation.presentationFileLoadPromise = null;
+    }
+  })();
+
+  await presentation.presentationFileLoadPromise;
 }
 
 function renderPresentationSelect() {
@@ -261,6 +301,8 @@ async function launchSelectedPresentation() {
     return;
   }
 
+  await hydratePresentationFile(selectedPresentation);
+
   closeStartModal();
   pageShellEl.hidden = true;
   vrRootEl.hidden = false;
@@ -268,7 +310,7 @@ async function launchSelectedPresentation() {
   await startTrainingRoom({
     container: vrRootEl,
     presentationTitle: selectedPresentation.title,
-    firstSlideUrl: selectedPresentation.presentationPages?.[0] ?? '',
+    presentationPages: selectedPresentation.presentationPages ?? [],
     roomLabel: roomOptions.find((room) => room.id === roomId)?.label ?? roomId,
     roomModelUrl: roomOptions.find((room) => room.id === roomId)?.modelUrl ?? '',
     onExit: () => {
@@ -292,6 +334,7 @@ function addMockPresentation() {
     extraInfo: '',
     presentationFile: null,
     presentationFileName: '',
+    presentationFilePath: '',
     presentationPages: []
   });
 
@@ -358,6 +401,9 @@ infoModalEl.addEventListener('click', (event) => {
 });
 
 applyStaticTranslations();
+renderRoomSelect();
 renderCards();
 renderPresentationSelect();
-renderRoomSelect();
+void hydrateStaticPresentationFiles().then(() => {
+  renderCards();
+});
