@@ -12,21 +12,22 @@ const TEST_PRESENTATION_PDF_PATH = `${import.meta.env.BASE_URL}presentations/tes
 const presentations = [
   {
     id: crypto.randomUUID(),
-    title: 'Test Presentation',
-    date: '12-02-2025',
+    title: 'BePresent - kleine Präsentation',
+    date: '16-12-2025',
     targetTime: '',
-    points: 120,
+    points: 150,
     streakDays: 3,
-    extraInfo: 'Focus on clear transitions between ecosystems and genetics.',
+    extraInfo: '',
     presentationFile: null,
     presentationFileName: 'test-presentation.pdf',
     presentationFilePath: TEST_PRESENTATION_PDF_PATH,
+    presentationPagesFullyLoaded: false,
     presentationPages: []
   },
   {
     id: crypto.randomUUID(),
-    title: 'English Presentation',
-    date: '19-02-2025',
+    title: 'Test Präsentation',
+    date: '30-06-2026',
     targetTime: '',
     points: 50,
     streakDays: 1,
@@ -34,6 +35,7 @@ const presentations = [
     presentationFile: null,
     presentationFileName: '',
     presentationFilePath: '',
+    presentationPagesFullyLoaded: false,
     presentationPages: []
   }
 ];
@@ -54,6 +56,7 @@ const vrRootEl = document.querySelector('#vr-root');
 let infoEditPresentationId = null;
 let selectedPdfFile = null;
 let selectedPdfFileName = '';
+let selectedPdfPagesFullyLoaded = false;
 let selectedPdfPages = [];
 
 function applyStaticTranslations() {
@@ -101,16 +104,17 @@ function renderPreview(item) {
   `;
 }
 
-async function renderPdfPages(pdfSource) {
+async function renderPdfPages(pdfSource, { pageLimit = Infinity } = {}) {
   const pdfData = new Uint8Array(await pdfSource.arrayBuffer());
   const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
   const pages = [];
 
   try {
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const lastPage = Math.min(pdf.numPages, pageLimit);
+    for (let pageNumber = 1; pageNumber <= lastPage; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const baseViewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(2, 720 / baseViewport.width);
+      const scale = Math.min(1.5, 640 / baseViewport.width);
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d', { alpha: false });
@@ -135,8 +139,9 @@ async function hydrateStaticPresentationFiles() {
   await Promise.all(presentations.map((presentation) => hydratePresentationFile(presentation)));
 }
 
-async function hydratePresentationFile(presentation) {
-  if (presentation.presentationPages?.length || !presentation.presentationFilePath) {
+async function hydratePresentationFile(presentation, { allPages = false } = {}) {
+  const hasEnoughPages = allPages ? presentation.presentationPagesFullyLoaded : presentation.presentationPages?.length;
+  if (hasEnoughPages || !presentation.presentationFilePath) {
     return;
   }
 
@@ -156,7 +161,10 @@ async function hydratePresentationFile(presentation) {
 
       const pdfBlob = await response.blob();
       presentation.presentationFile = pdfBlob;
-      presentation.presentationPages = await renderPdfPages(pdfBlob);
+      presentation.presentationPages = await renderPdfPages(pdfBlob, {
+        pageLimit: allPages ? Infinity : 1
+      });
+      presentation.presentationPagesFullyLoaded = allPages;
     } catch (error) {
       console.warn(`Could not load static presentation PDF: ${presentation.presentationFilePath}`, error);
     } finally {
@@ -191,7 +199,6 @@ function renderCards() {
           <div class="extra-info">${escapeHtml(item.extraInfo || t('cards.extraInfoFallback'))}</div>
           <div class="file-status">${escapeHtml(item.presentationFileName || t('cards.noPresentationFile'))}</div>
           <div class="card-buttons">
-            <button class="chip">${t('cards.editFlashcards')}</button>
             <button class="chip" data-action="edit-info">${t('cards.editPresentationInfo')}</button>
           </div>
         </div>
@@ -271,6 +278,7 @@ function openInfoModal(presentationId) {
   infoExtraEl.value = entry.extraInfo ?? '';
   selectedPdfFile = entry.presentationFile ?? null;
   selectedPdfFileName = entry.presentationFileName ?? '';
+  selectedPdfPagesFullyLoaded = entry.presentationPagesFullyLoaded ?? false;
   selectedPdfPages = entry.presentationPages ?? [];
   infoFileEl.value = '';
   infoFileNameEl.textContent = selectedPdfFileName || t('infoModal.noFileSelected');
@@ -282,6 +290,7 @@ function closeInfoModal() {
   infoEditPresentationId = null;
   selectedPdfFile = null;
   selectedPdfFileName = '';
+  selectedPdfPagesFullyLoaded = false;
   selectedPdfPages = [];
   infoFileEl.value = '';
 }
@@ -302,6 +311,7 @@ function saveInfoModal() {
   entry.extraInfo = infoExtraEl.value.trim();
   entry.presentationFile = selectedPdfFile;
   entry.presentationFileName = selectedPdfFileName;
+  entry.presentationPagesFullyLoaded = selectedPdfPagesFullyLoaded;
   entry.presentationPages = selectedPdfPages;
   closeInfoModal();
   renderCards();
@@ -316,7 +326,7 @@ async function launchSelectedPresentation() {
     return;
   }
 
-  await hydratePresentationFile(selectedPresentation);
+  await hydratePresentationFile(selectedPresentation, { allPages: true });
 
   closeStartModal();
   pageShellEl.hidden = true;
@@ -351,6 +361,7 @@ function addMockPresentation() {
     presentationFile: null,
     presentationFileName: '',
     presentationFilePath: '',
+    presentationPagesFullyLoaded: false,
     presentationPages: []
   });
 
@@ -383,6 +394,7 @@ infoFileEl.addEventListener('change', async () => {
     const pages = await renderPdfPages(file);
     selectedPdfFileName = file.name;
     selectedPdfFile = file;
+    selectedPdfPagesFullyLoaded = true;
     selectedPdfPages = pages;
     infoFileNameEl.textContent = `${file.name} (${pages.length} ${pages.length === 1 ? t('cards.page') : t('cards.pages')})`;
   } catch {

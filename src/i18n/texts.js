@@ -102,7 +102,7 @@ const translations = {
       editFlashcards: 'Karteikarten bearbeiten',
       editPresentationInfo: 'Präsentationsinfos bearbeiten',
       points: 'Punkte',
-      streak: 'Serie',
+      streak: 'Streak',
       day: 'Tag',
       days: 'Tage',
       page: 'Seite',
