@@ -9,9 +9,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const TEST_PRESENTATION_PDF_PATH = `${import.meta.env.BASE_URL}presentations/test-presentation.pdf`;
 
+function createId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 const presentations = [
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     title: 'BePresent - kleine Präsentation',
     date: '16-12-2025',
     targetTime: '',
@@ -25,12 +33,12 @@ const presentations = [
     presentationPages: []
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     title: 'Test Präsentation',
     date: '30-06-2026',
     targetTime: '',
-    points: 50,
-    streakDays: 1,
+    points: 0,
+    streakDays: 0,
     extraInfo: '',
     presentationFile: null,
     presentationFileName: '',
@@ -351,7 +359,7 @@ function addMockPresentation() {
   const dateLabel = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
 
   presentations.unshift({
-    id: crypto.randomUUID(),
+    id: createId(),
     title: t('cards.defaultNewTitle'),
     date: dateLabel,
     targetTime: '',
